@@ -15,7 +15,7 @@ create table school_classes
     id                  serial primary key,
     class_name          varchar(20) not null unique,
     grade_level         int         not null check (grade_level between 1 and 12),
-    homeroom_teacher_id int unique references teachers (id) on delete set null -- 1 вчитель - 1 клас
+    homeroom_teacher_id int unique  references teachers (id) on delete set null -- 1 вчитель - 1 клас
 );
 --учні
 create table students
@@ -107,12 +107,12 @@ create table attendance
 
 create table homework
 (
-    id serial primary key,
-    subject_id int not null references subjects(id) on delete cascade,
-    class_id int not null references school_classes(id) on delete cascade,
-    teacher_id int not null references teachers(id) on delete cascade,
+    id          serial primary key,
+    subject_id  int           not null references subjects (id) on delete cascade,
+    class_id    int           not null references school_classes (id) on delete cascade,
+    teacher_id  int           not null references teachers (id) on delete cascade,
     description varchar(1000) not null,
-    due_date date not null
+    due_date    date          not null
 );
 
 
@@ -121,10 +121,51 @@ FROM grades;
 SELECT COUNT(*)
 FROM attendance;
 
-create index idx_grades_student_id on grades(student_id);
-create index idx_grades_subject_id on grades(subject_id);
-create index idx_grades_date on grades(grade_date);
-create index idx_attendance_student_id on attendance(student_id);
-create index idx_attendance_date on attendance(lesson_date);
-create index idx_students_class_id on students(class_id);
-create index idx_students_last_name on students(last_name);
+create index idx_grades_student_id on grades (student_id);
+create index idx_grades_subject_id on grades (subject_id);
+create index idx_grades_date on grades (grade_date);
+create index idx_attendance_date on attendance (lesson_date);
+create index idx_students_class_id on students (class_id);
+create index idx_students_last_name on students (last_name);
+explain
+analyze
+SELECT *
+FROM grades
+WHERE student_id = 123;
+--Gather  (cost=1000.00..7504.37 rows=502 width=31) (actual time=10.852..141.432 rows=528 loops=1)
+-- Workers Planned: 2
+--   Workers Launched: 2
+--   ->  Parallel Seq Scan on grades  (cost=0.00..6454.17 rows=209 width=31) (actual time=0.052..23.599 rows=176 loops=3)
+--         Filter: (student_id = 123)
+--         Rows Removed by Filter: 166491
+-- Planning Time: 0.222 ms
+-- Execution Time: 141.581 ms
+
+-- ств індекси
+explain
+analyze
+SELECT *
+FROM grades
+WHERE student_id = 123;
+--Bitmap Heap Scan on grades  (cost=8.31..1406.79 rows=502 width=31) (actual time=0.321..1.226 rows=528 loops=1)
+-- Recheck Cond: (student_id = 123)
+--   Heap Blocks: exact=486
+--   ->  Bitmap Index Scan on idx_grades_student_id  (cost=0.00..8.19 rows=502 width=0) (actual time=0.219..0.219 rows=528 loops=1)
+--         Index Cond: (student_id = 123)
+-- Planning Time: 14.362 ms
+-- Execution Time: 1.300 ms
+-- швидше у 100 разів мінімум
+
+EXPLAIN
+ANALYZE
+SELECT *
+FROM attendance
+WHERE student_id = 123;
+--
+-- Bitmap Heap Scan on attendance  (cost=5.84..539.05 rows=200 width=23) (actual time=0.108..0.493 rows=188 loops=1)
+--   Recheck Cond: (student_id = 123)
+--   Heap Blocks: exact=176
+--   ->  Bitmap Index Scan on idx_attendance_student_id  (cost=0.00..5.79 rows=200 width=0) (actual time=0.055..0.055 rows=188 loops=1)
+--         Index Cond: (student_id = 123)
+-- Planning Time: 0.236 ms
+-- Execution Time: 0.552 ms
