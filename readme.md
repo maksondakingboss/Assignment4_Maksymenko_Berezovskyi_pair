@@ -1,154 +1,21 @@
 # Practical assignment 4
 
-## The purpose of this task
 
-Learn how to design and implement an operational PostgreSQL database for a particular application.
+У цьому проєкті зроблена база даних для системи типу єдиної школи. Вона потрібна для зберігання основної інформації про школу: класи, учнів, батьків, вчителів, предмети, оцінки та відвідуваність.
 
-You can work alone or in pairs with a colleague (maximum 2 people in a team). In the case when you are working on the task together, then you should also present in pairs.
+Архітектура бази побудована навколо учня. Таблиця students зберігає основні дані про учнів. Кожен учень належить до певного класу, тому students має зв'язок з таблицею school_classes. Для додаткової інформації про учня є окрема таблиця student_profiles. Вона пов'язана зі students як один до одного.
 
-## Requirements
+Батьки винесені в окрему таблицю parents, бо один учень може мати кількох батьків, і один батько може бути пов'язаний з кількома учнями. Для цього використовується проміжна таблиця student_parents. Це зв'язок багато до багатьох.
 
-### Basic requirements (_for 20 points_):
+Вчителі зберігаються в таблиці teachers, а предмети в таблиці subjects. Один вчитель може викладати кілька предметів, і один предмет можуть викладати різні вчителі. Для цього є таблиця teacher_subjects.
 
-1) Build your own operational database for your business.
-2) Use relationships: 1:1, 1:many, many:many.
-3) Use constraints.
-4) Use indexes for optimization (_that is why you need to insert approximately 500 000 rows in some tables to be able to show performance optimization_). Use `EXPLAIN ANALYZE` to compare query performance before and after creating indexes.
-5) Be able to present ERD.
-6) Be able to explain your solution using the correct terminology.
+Оцінки зберігаються в таблиці grades. Вона пов'язує учня, предмет і вчителя. Так можна зрозуміти, хто отримав оцінку, з якого предмета і який вчитель її поставив.
 
+Відвідуваність зберігається в таблиці attendance. Там записується учень, дата і статус присутності.
 
-### Additional points (_for 3 points_):
-- Create at least 3 different users for different purposes **_+0.5_**
+У таблицях використані primary key, foreign key, not null, unique, check і default. Це потрібно, щоб дані не ламали логіку бази. Наприклад, оцінка має бути в дозволеному діапазоні, а зв'язки між таблицями не можуть посилатися на неіснуючі записи.
 
-- Create at least 1 view **_+0.5_**
+Також у базі є індекси. Вони додані для полів, які часто використовуються в пошуку або фільтрації, наприклад для оцінок і відвідуваності. У query.sql є запити з EXPLAIN ANALYZE, щоб перевірити, як PostgreSQL виконує запити.
 
-- Create at least 1 stored procedure **_+1_**
+Файл query.sql містить створення таблиць, зв'язків, індексів і тестові запити. Файл main.py генерує тестові дані. Для таблиці grades генерується 500000 записів, щоб можна було перевірити роботу індексів на великій кількості даних.
 
-- Create at least 1 trigger or function **_+1_**
-
-Meeting the basic requirements of Practical Assignment 4 allows for a maximum of 20 points to be earned, and completing additional tasks listed under the heading "Additional points" can yield up to 3 extra points.
-
-
-## Additional info
-I suggest you look at my example of the execution of a part of the task, which is described below (Schedule Demo).
-
-
-- primary keys and foreign keys;
-- constraints;
-- indexes;
-- views;
-- users and privileges;
-- stored procedures and functions;
-- triggers;
-
-## Schedule Demo
-### Database Schema
-
-This is the database schema for the project.
-
-This is the ERD:
-
-```mermaid
-erDiagram
-    STUDENTS {
-        VARCHAR(36) ID PK
-        VARCHAR(200) FIRST_NAME
-        VARCHAR(200) LAST_NAME
-        VARCHAR(200) EMAIL
-        VARCHAR(20) PHONE
-        INT COURSE
-        VARCHAR(20) EDUCATIONAL_DEGREE
-        VARCHAR(20) SPECIALITY
-        BOOLEAN ACTIVE
-    }
-
-    ROOMS {
-        VARCHAR(36) ID PK
-        VARCHAR(200) BUILDING
-        INT FLOOR
-        INT NUMBER
-        VARCHAR(200) DISPLAY_NAME
-        INT SEATS_NUMBER
-    }
-
-    COURSES {
-        VARCHAR(36) ID PK
-        VARCHAR(36) COURSE_DISPLAY_SHORT_NAME
-        VARCHAR(200) COURSE_DISPLAY_FULL_NAME
-        VARCHAR(500) COURSE_DESCRIPTION
-        INT LECTURES_NUM
-        INT PRACTICES_NUM
-    }
-
-    INSTRUCTORS {
-        VARCHAR(36) ID PK
-        VARCHAR(200) FIRST_NAME
-        VARCHAR(200) LAST_NAME
-        VARCHAR(200) EMAIL
-        VARCHAR(20) PHONE
-        BOOLEAN ACTIVE
-    }
-
-    LESSONS_SCHEDULE {
-        INT ID PK
-        TIME START_TIME
-        TIME END_TIME
-    }
-
-    INSTRUCTORS_COURSES {
-        VARCHAR(36) INSTRUCTOR_ID
-        VARCHAR(36) COURSE_ID
-    }
-
-    STUDENTS_COURSE_GROUPS {
-        VARCHAR(36) ID PK
-        VARCHAR(36) COURSE_ID
-    }
-
-    STUDENTS_COURSE_GROUP_STUDENTS {
-        VARCHAR(36) STUDENT_ID
-        VARCHAR(36) GROUP_ID
-    }
-
-    SCHEDULE {
-        INT ID PK
-        VARCHAR(36) COURSE_ID
-        VARCHAR(36) INSTRUCTOR_ID
-        VARCHAR(36) STUDENTS_COURSE_GROUP_ID
-        VARCHAR(20) WEEK_DAY
-        INT LESSON_SCHEDULE_ID
-        VARCHAR(36) ROOM_ID
-    }
-
-    STUDENTS ||--o{ STUDENTS_COURSE_GROUP_STUDENTS: "belongs to"
-    STUDENTS_COURSE_GROUPS ||--o{ STUDENTS_COURSE_GROUP_STUDENTS: "includes"
-    STUDENTS_COURSE_GROUPS ||--o{ SCHEDULE: "has"
-    COURSES ||--o{ SCHEDULE: "includes"
-    INSTRUCTORS ||--o{ INSTRUCTORS_COURSES: "teaches"
-    COURSES ||--o{ INSTRUCTORS_COURSES: "is taught by"
-    INSTRUCTORS ||--o{ SCHEDULE: "teaches"
-    LESSONS_SCHEDULE ||--o{ SCHEDULE: "is scheduled for"
-    ROOMS ||--o{ SCHEDULE: "takes place in"
-```
-### Files description
-
-1) create_tables_script.sql - script for tables creation.
-2) create_view.sql - script for view creation.
-3) create_user.sql - script for adding user and for granting some privileges.
-4) main.py - python script that inserts some data into tables.
-
-### Requirements
-
-- Python 3.9.6 or newer
-- PostgreSQL Server
-- `psycopg2-binary` package
-- `python-dotenv` package
-
-Example `requirements.txt`:
-
-```txt
-psycopg2-binary==2.9.10
-python-dotenv==1.1.1
-faker==37.5.3
-```
